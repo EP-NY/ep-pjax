@@ -173,7 +173,7 @@ function pjax(options) {
   var hash = parseURL(options.url).hash
 
   // Transition Variables
-  var canTransition = options.transition === true && typeof transitionOut === 'function' && typeof transitionIn === 'function';
+  var canTransition = options.transition === true && typeof options.transitionOut === 'function' && typeof options.transitionIn === 'function';
   var transitionPromise = $.Deferred();
   var replacePromise = $.Deferred();
 
@@ -332,7 +332,7 @@ function pjax(options) {
     if (canTransition) {
       checkPromise(transitionPromise, function () {
         replace();
-      }
+      });
     }
     else {
       replace();
@@ -405,7 +405,7 @@ function pjax(options) {
     }
 
     if (canTransition) {
-      options.transitionOut(context, transitionPromise, options);
+      options.transitionOut(context, options, transitionPromise);
     }
     fire('pjax:start', [xhr, options])
     fire('pjax:send', [xhr, options])
@@ -893,7 +893,7 @@ function enable() {
     maxCacheLength: 20,
     version: findVersion,
     transition: false,
-    transitinOut: null,
+    transitionOut: null,
     transitionIn: null
   }
   $(window).on('popstate.pjax', onPjaxPopstate)
