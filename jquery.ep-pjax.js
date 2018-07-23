@@ -145,6 +145,18 @@ function handleSubmit(event, container, options) {
   event.preventDefault()
 }
 
+// Check to see if a promise has been resolved, then run the callback
+function checkPromise(promise, callback) {
+  if (promise.state() === 'resolved' && typeof callback === 'function') {
+    callback();
+  }
+  else {
+    setTimeout(function() {
+      checkPromise(promise, callback);
+    }, 10);
+  }
+}
+
 // Loads a URL with ajax, puts the response body inside a container,
 // then pushState()'s the loaded URL.
 //
@@ -203,17 +215,6 @@ function pjax(options) {
     var event = $.Event(type, props)
     context.trigger(event, args)
     return !event.isDefaultPrevented()
-  }
-
-  function checkPromise(promise, callback) {
-    if (promise.state() === 'resolved' && typeof callback === 'function') {
-      callback();
-    }
-    else {
-      setTimeout(function() {
-        checkPromise(promise, callback);
-      }, 10);
-    }
   }
 
   var timeoutTimer
@@ -503,7 +504,7 @@ function onPjaxPopstate(event) {
       })
       container.trigger(popstateEvent)
 
-      var options = {
+      var popStateOptions = {
         id: state.id,
         url: state.url,
         container: containerSelector,
@@ -513,21 +514,46 @@ function onPjaxPopstate(event) {
         scrollTo: false
       }
 
+      options = $.extend(true, {}, pjax.defaults, popStateOptions)
+
+      var canTransition = options.transition === true && typeof options.transitionOut === 'function' && typeof options.transitionIn === 'function';
+      var transitionPromise = $.Deferred();
+      var replacePromise = $.Deferred();
+
       if (contents) {
-        container.trigger('pjax:start', [null, options])
+        var replace = function() {
+          container.trigger('pjax:start', [null, options])
 
-        pjax.state = state
-        if (state.title) document.title = state.title
-        var beforeReplaceEvent = $.Event('pjax:beforeReplace', {
-          state: state,
-          previousState: previousState
-        })
-        container.trigger(beforeReplaceEvent, [contents, options])
-        container.html(contents)
+          pjax.state = state
+          if (state.title) document.title = state.title
+          var beforeReplaceEvent = $.Event('pjax:beforeReplace', {
+            state: state,
+            previousState: previousState
+          })
+          container.trigger(beforeReplaceEvent, [contents, options])
+          container.html(contents)
+          replacePromise.resolve()
+        };
+        var complete = function() {
+          container.trigger('pjax:end', [null, options])
+        };
 
-        container.trigger('pjax:end', [null, options])
+        if (canTransition) {
+          options.transitionOut(container, options, transitionPromise);
+          checkPromise(transitionPromise, function () {
+            replace();
+          });
+          replacePromise.done(function() {
+            options.transitionIn(container, options);
+            complete();
+          });
+        }
+        else {
+          replace();
+          complete();
+        }
       } else {
-        pjax(options)
+        pjax(popStateOptions)
       }
 
       // Force reflow/relayout before the browser tries to restore the
