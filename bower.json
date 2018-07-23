@@ -1,6 +1,6 @@
 {
-  "name": "jquery-pjax",
-  "main": "./jquery.pjax.js",
+  "name": "ep-pjax",
+  "main": "./jquery.ep-pjax.js",
   "dependencies": {
     "jquery": ">=1.8"
   },

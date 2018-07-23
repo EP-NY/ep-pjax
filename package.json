@@ -1,13 +1,13 @@
 {
-  "name": "jquery-pjax",
+  "name": "ep-pjax",
   "description": "jQuery plugin for ajax + pushState navigation",
-  "version": "2.0.1",
-  "main": "jquery.pjax.js",
-  "repository": "defunkt/jquery-pjax",
+  "version": "2.0.2",
+  "main": "jquery.ep-pjax.js",
+  "repository": "EP-NY/ep-pjax",
   "license": "MIT",
   "files": [
     "LICENSE",
-    "jquery.pjax.js"
+    "jquery.ep-pjax.js"
   ],
   "devDependencies": {
     "eslint": "^3.19.0"
