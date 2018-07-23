@@ -172,6 +172,11 @@ function pjax(options) {
 
   var hash = parseURL(options.url).hash
 
+  // Transition Variables
+  var canTransition = options.transition === true && typeof transitionOut === 'function' && typeof transitionIn === 'function';
+  var transitionPromise = $.Deferred();
+  var replacePromise = $.Deferred();
+
   var containerType = $.type(options.container)
   if (containerType !== 'string') {
     throw "expected string value for 'container' option; got " + containerType
@@ -198,6 +203,17 @@ function pjax(options) {
     var event = $.Event(type, props)
     context.trigger(event, args)
     return !event.isDefaultPrevented()
+  }
+
+  function checkPromise(promise, callback) {
+    if (promise.state() === 'resolved' && typeof callback === 'function') {
+      callback();
+    }
+    else {
+      setTimeout(function() {
+        checkPromise(promise, callback);
+      }, 10);
+    }
   }
 
   var timeoutTimer
@@ -304,36 +320,57 @@ function pjax(options) {
 
     if (container.title) document.title = container.title
 
-    fire('pjax:beforeReplace', [container.contents, options], {
-      state: pjax.state,
-      previousState: previousState
-    })
-    context.html(container.contents)
-
-    // FF bug: Won't autofocus fields that are inserted via JS.
-    // This behavior is incorrect. So if theres no current focus, autofocus
-    // the last field.
-    //
-    // http://www.w3.org/html/wg/drafts/html/master/forms.html
-    var autofocusEl = context.find('input[autofocus], textarea[autofocus]').last()[0]
-    if (autofocusEl && document.activeElement !== autofocusEl) {
-      autofocusEl.focus()
+    var replace = function() {
+      fire('pjax:beforeReplace', [container.contents, options], {
+        state: pjax.state,
+        previousState: previousState
+      })
+      context.html(container.contents)
+      replacePromise.resolve();
     }
 
-    executeScriptTags(container.scripts)
-
-    var scrollTo = options.scrollTo
-
-    // Ensure browser scrolls to the element referenced by the URL anchor
-    if (hash) {
-      var name = decodeURIComponent(hash.slice(1))
-      var target = document.getElementById(name) || document.getElementsByName(name)[0]
-      if (target) scrollTo = $(target).offset().top
+    if (canTransition) {
+      checkPromise(transitionPromise, function () {
+        replace();
+      }
+    }
+    else {
+      replace();
     }
 
-    if (typeof scrollTo == 'number') $(window).scrollTop(scrollTo)
+    var complete = function() {
+      // FF bug: Won't autofocus fields that are inserted via JS.
+      // This behavior is incorrect. So if theres no current focus, autofocus
+      // the last field.
+      //
+      // http://www.w3.org/html/wg/drafts/html/master/forms.html
+      var autofocusEl = context.find('input[autofocus], textarea[autofocus]').last()[0]
+      if (autofocusEl && document.activeElement !== autofocusEl) {
+        autofocusEl.focus()
+      }
 
-    fire('pjax:success', [data, status, xhr, options])
+      executeScriptTags(container.scripts)
+
+      var scrollTo = options.scrollTo
+
+      // Ensure browser scrolls to the element referenced by the URL anchor
+      if (hash) {
+        var name = decodeURIComponent(hash.slice(1))
+        var target = document.getElementById(name) || document.getElementsByName(name)[0]
+        if (target) scrollTo = $(target).offset().top
+      }
+
+      if (typeof scrollTo == 'number') $(window).scrollTop(scrollTo)
+
+      fire('pjax:success', [data, status, xhr, options])
+    };
+
+    replacePromise.done(function() {
+      if (canTransition) {
+        options.transitionIn(context, options);
+      }
+      complete();
+    });
   }
 
 
@@ -367,6 +404,9 @@ function pjax(options) {
       window.history.pushState(null, "", options.requestUrl)
     }
 
+    if (canTransition) {
+      options.transitionOut(context, transitionPromise, options);
+    }
     fire('pjax:start', [xhr, options])
     fire('pjax:send', [xhr, options])
   }
@@ -851,7 +891,10 @@ function enable() {
     dataType: 'html',
     scrollTo: 0,
     maxCacheLength: 20,
-    version: findVersion
+    version: findVersion,
+    transition: false,
+    transitinOut: null,
+    transitionIn: null
   }
   $(window).on('popstate.pjax', onPjaxPopstate)
 }
