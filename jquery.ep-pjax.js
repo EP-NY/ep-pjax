@@ -288,6 +288,10 @@ function pjax(options) {
 
     var container = extractContainer(data, xhr, options);
 
+    if (container.body != null) {
+      options.body = container.body;
+    }
+
     var url = parseURL(container.url);
     if (hash) {
       url.hash = hash;
@@ -736,6 +740,7 @@ function extractContainer(data, xhr, options) {
   // using the original requested url.
   var serverUrl = xhr.getResponseHeader('X-PJAX-URL');
   obj.url = serverUrl ? stripInternalParams(parseURL(serverUrl)) : options.requestUrl;
+  obj.response = data;
 
   var $head, $body;
   // Attempt to parse response html into elements
@@ -750,6 +755,8 @@ function extractContainer(data, xhr, options) {
   // If response data is empty, return fast
   if ($body.length === 0)
     return obj;
+
+  obj.body = $body;
 
   // If there's a <title> tag in the header, use it as
   // the page's title.
