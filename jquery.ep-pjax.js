@@ -271,6 +271,7 @@ function pjax(options) {
 
     var allowed = fire('pjax:error', [xhr, textStatus, errorThrown, options]);
     if (options.type == 'GET' && textStatus !== 'abort' && allowed) {
+      console.log('error - ajax error');
       locationReplace(container.url);
     }
   };
@@ -298,12 +299,14 @@ function pjax(options) {
 
     // If there is a layout version mismatch, hard load the new url
     if (currentVersion && latestVersion && currentVersion !== latestVersion) {
+      console.log('error - layout version mismatch');
       locationReplace(container.url);
       return;
     }
 
     // If the new response is missing a body, hard load the page
     if (!container.contents) {
+      console.log('error - no contents');
       locationReplace(container.url);
       return;
     }
@@ -408,11 +411,11 @@ function pjax(options) {
   pjax.options = options;
   var xhr = pjax.xhr = $.ajax(options);
 
-  var $body = $('body').html();
+  var body = $('body').clone();
   if (xhr.readyState > 0) {
     if (options.push && !options.replace) {
       // Cache current container element before replacing it
-      cachePush(pjax.state.id, [options.container, cloneContents(context), $body]);
+      cachePush(pjax.state.id, [options.container, cloneContents(context), body]);
 
       window.history.pushState(null, "", options.requestUrl);
     }
@@ -506,9 +509,10 @@ function onPjaxPopstate(event) {
 
     if (container.length) {
       if (previousState) {
+        var previous_body = $('body').clone();
         // Cache current container before replacement and inform the
         // cache which direction the history shifted.
-        cachePop(direction, previousState.id, [containerSelector, cloneContents(container), previousState.body]);
+        cachePop(direction, previousState.id, [containerSelector, cloneContents(container), previous_body]);
       }
 
       var popstateEvent = $.Event('pjax:popstate', {
@@ -574,6 +578,7 @@ function onPjaxPopstate(event) {
       // scroll position.
       container[0].offsetHeight; // jshint ignore:line
     } else {
+      console.log('error - no history');
       locationReplace(location.href);
     }
   }
@@ -744,7 +749,6 @@ function extractContainer(data, xhr, options) {
   // using the original requested url.
   var serverUrl = xhr.getResponseHeader('X-PJAX-URL');
   obj.url = serverUrl ? stripInternalParams(parseURL(serverUrl)) : options.requestUrl;
-  obj.response = data;
 
   var $head, $body;
   // Attempt to parse response html into elements
@@ -757,10 +761,11 @@ function extractContainer(data, xhr, options) {
   }
 
   // If response data is empty, return fast
-  if ($body.length === 0)
+  if ($body.length === 0) {
     return obj;
+  }
 
-  obj.body = $body.html();
+  obj.body = $body;
 
   // If there's a <title> tag in the header, use it as
   // the page's title.
@@ -801,7 +806,9 @@ function extractContainer(data, xhr, options) {
   }
 
   // Trim any whitespace off the title
-  if (obj.title) obj.title = $.trim(obj.title);
+  if (obj.title) {
+    obj.title = $.trim(obj.title);
+  }
 
   return obj;
 }
