@@ -288,9 +288,7 @@ function pjax(options) {
 
     var container = extractContainer(data, xhr, options);
 
-    if (container.body != null) {
-      options.body = container.body;
-    }
+    
 
     var url = parseURL(container.url);
     if (hash) {
@@ -318,6 +316,10 @@ function pjax(options) {
       fragment: options.fragment,
       timeout: options.timeout
     };
+
+    if (container.body != null) {
+      options.body = container.body;
+    }
 
     if (options.push || options.replace) {
       window.history.replaceState(pjax.state, container.title, container.url);
@@ -384,7 +386,6 @@ function pjax(options) {
   };
   // End options.success
 
-
   // Initialize pjax.state for the initial page load. Assume we're
   // using the container and options of the link we're loading for the
   // back button to the initial page. This ensures good back button
@@ -407,10 +408,11 @@ function pjax(options) {
   pjax.options = options;
   var xhr = pjax.xhr = $.ajax(options);
 
+  var $body = $('body').html();
   if (xhr.readyState > 0) {
     if (options.push && !options.replace) {
       // Cache current container element before replacing it
-      cachePush(pjax.state.id, [options.container, cloneContents(context)]);
+      cachePush(pjax.state.id, [options.container, cloneContents(context), $body]);
 
       window.history.pushState(null, "", options.requestUrl);
     }
@@ -500,12 +502,13 @@ function onPjaxPopstate(event) {
     var cache = cacheMapping[state.id] || [];
     var containerSelector = cache[0] || state.container;
     var container = $(containerSelector), contents = cache[1];
+    var body = cache[2];
 
     if (container.length) {
       if (previousState) {
         // Cache current container before replacement and inform the
         // cache which direction the history shifted.
-        cachePop(direction, previousState.id, [containerSelector, cloneContents(container)]);
+        cachePop(direction, previousState.id, [containerSelector, cloneContents(container), previousState.body]);
       }
 
       var popstateEvent = $.Event('pjax:popstate', {
@@ -521,7 +524,8 @@ function onPjaxPopstate(event) {
         push: false,
         fragment: state.fragment,
         timeout: state.timeout,
-        scrollTo: false
+        scrollTo: false,
+        body: body
       };
 
       options = $.extend(true, {}, pjax.defaults, popStateOptions);
@@ -756,7 +760,7 @@ function extractContainer(data, xhr, options) {
   if ($body.length === 0)
     return obj;
 
-  obj.body = $body;
+  obj.body = $body.html();
 
   // If there's a <title> tag in the header, use it as
   // the page's title.
