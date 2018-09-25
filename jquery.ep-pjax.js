@@ -414,6 +414,7 @@ function pjax(options) {
   var body = $('body').clone();
   if (xhr.readyState > 0) {
     if (options.push && !options.replace) {
+
       // Cache current container element before replacing it
       cachePush(pjax.state.id, [options.container, cloneContents(context), body]);
 
@@ -647,6 +648,11 @@ function uniqueId() {
 }
 
 function cloneContents(container) {
+  if (typeof $.fn.slick !== 'undefined' && container.find('.slick-initialized').length > 0) {
+    container.find('.slick-initialized').each(function() {
+      $(this).slick('unslick');
+    });
+  }
   var cloned = container.clone();
   // Unmark script tags as already being eval'd so they can get executed again
   // when restored from cache. HAXX: Uses jQuery internal method.
